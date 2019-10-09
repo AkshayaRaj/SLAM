@@ -5,7 +5,7 @@ import sdl2.ext
 class Display(object):
     def __init__(self,W,H):
         sdl2.ext.init()
-        self.window = sdl2.ext.Window("My game",size=(W,H))
+        self.window = sdl2.ext.Window("Display",size=(W,H))
         self.window.show()
         self.W, self.H = W, H
 
