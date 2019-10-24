@@ -10,7 +10,7 @@ import numpy as np
 W = 1920//2
 H = 1080//2
 
-F = 1
+F = 270
 
 disp = Display(W,H)
 
@@ -21,9 +21,11 @@ fe = Extractor(K)
 def process_frame(img):
     
     img = cv2.resize(img,(W,H) )
-    matches = fe.extract(img)
-    
-    #print("%d matches" %(len(matches)))
+    matches, pose = fe.extract(img)
+    if pose is None:
+        return
+    print("%d matches" %(len(matches)))
+    print(pose)
 
 
     # drawing features

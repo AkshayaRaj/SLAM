@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from skimage.transform import FundamentalMatrixTransform
+from skimage.transform import EssentialMatrixTransform
 from skimage.measure import ransac
 
 np.set_printoptions(suppress=True)
@@ -8,6 +9,24 @@ np.set_printoptions(suppress=True)
 # turn [[x,y]] -> [[x,y,1]]
 def add_ones(x):
     return np.concatenate([x, np.ones((x.shape[0], 1))], axis=1)
+
+def extractRt(E):
+    
+    # compute R and t from Essential Matrix:
+    W = np.mat([[0,-1,0],[1,0,0],[0,0,1]],dtype=float)
+    U, d, Vt = np.linalg.svd(E) 
+    assert np.linalg.det(U) > 0
+    if np.linalg.det(Vt) < -0:
+        Vt *= -1.0
+    R = np.dot(np.dot(U, W), Vt)
+    if np.sum(R.diagonal()) < 0:
+        R = np.dot(np.dot(U, W.T), Vt)
+    t = U[:, 2]
+    #print(R,t)
+    Rt = np.concatenate([R,t.reshape(3,1)], axis=1)
+    return Rt
+
+f_est_avg = []
 
 class Extractor(object):
     GX = 16//2
@@ -26,6 +45,7 @@ class Extractor(object):
     def denormalize(self,  pt): 
         #print(self.Kinv
         ret = np.dot(self.K, np.array([pt[0],pt[1],1]))
+        # needed?
         #ret /= ret[2]
         return int(round(ret[0])),int(round(ret[1]))
 
@@ -52,6 +72,7 @@ class Extractor(object):
                 
         
         # filter
+        Rt = None
         if len(ret) > 0:
             #print('yes')
             ret = np.array(ret)
@@ -62,18 +83,22 @@ class Extractor(object):
     
 
             model, inliers = ransac((ret[:, 0], ret[:, 1]),
-                                    FundamentalMatrixTransform,
+                                    #FundamentalMatrixTransform,
+                                    EssentialMatrixTransform,
                                     min_samples = 8,
-                                    residual_threshold = 1,
+                                    residual_threshold = 0.005,
+                                    #residual_threshold = 1,
                                     max_trials = 100
             )
-            #print(sum(inliers))
+            # print("%d matches " %sum(inliers))
             ret = ret[inliers] 
-            s,v,d = np.linalg.svd(model.params) 
-            print(v)
+            Rt = extractRt(model.params)
+            #print(R,t)
+                
+        
             
 
 
         #matches = zip([kps[m.queryIdx] for m in matches], [self.last['kps'][m.trainIdx] for m in matches])
         self.last = {'kps': kps, 'des': des}
-        return ret
+        return ret, Rt
